@@ -19,7 +19,7 @@ The Subprocess Orchestrator is a tool designed to manage and execute sequences o
 
 ## Installation
 
-1. Clone this repository or download the `subprocess_orchestrator.py` file.
+1. Clone this repository.
 2. Install the required dependencies:
 
    ```
