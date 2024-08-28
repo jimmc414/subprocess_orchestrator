@@ -1,6 +1,6 @@
 # Subprocess Orchestrator
 
-The Subprocess Orchestrator is a flexible Python-based tool designed to manage and execute complex sequences of tasks. It supports running subprocesses, custom Python functions, and composite tasks defined in a YAML configuration file.
+The Subprocess Orchestrator is a tool designed to manage and execute complex sequences of custom tasks and conditions. It supports running subprocesses, custom Python functions, and composite tasks defined in a YAML configuration file.
 
 ## Features
 
