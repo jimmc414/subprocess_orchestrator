@@ -12,6 +12,15 @@ tasks:
         type: subprocess
         command: ["\\\\mp-cp\\bin\\acuthin", "mp-cp", "f1", "stratus"]
         run_if: file_age_exceeded
+      - name: wait_for_acuthin
+        type: wait
+        max_wait_time: 600  # 10 minutes
+        check_interval: 30  # Check every 30 seconds
+        condition:
+          type: file_updated
+          args:
+            file_path: "m:\\spbw\\output.csv"
+            reference_time: "{{run_acuthin.start_time}}"
       - name: copy_output
         type: subprocess
         command: ["cmd", "/c", "copy", "m:\\spbw\\output.csv", "\\\\thinclient\\d$\\cp\\edi\\spbw", "/y"]
@@ -32,3 +41,6 @@ functions:
   update_last_run:
     path: "T:\\EDISHARE\\PYTHON\\AOD_Report\\file_utils.py"
     function: update_last_run
+  file_updated:
+    path: "T:\\EDISHARE\\PYTHON\\AOD_Report\\file_utils.py"
+    function: file_updated
