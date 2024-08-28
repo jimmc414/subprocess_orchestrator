@@ -27,3 +27,21 @@ def update_last_run(file_path: str) -> None:
     with open(file_path, 'w') as f:
         f.write(datetime.now().isoformat())
     print(f"Updated last run timestamp in {file_path}")
+
+def file_updated(file_path: str, reference_time: str) -> bool:
+    """
+    Check if the file at file_path has been modified since reference_time.
+    """
+    if not os.path.exists(file_path):
+        print(f"File {file_path} does not exist.")
+        return False
+
+    file_mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+    ref_time = datetime.fromisoformat(reference_time)
+
+    if file_mod_time > ref_time:
+        print(f"File {file_path} has been updated since {reference_time}.")
+        return True
+    else:
+        print(f"File {file_path} has not been updated since {reference_time}.")
+        return False
