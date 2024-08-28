@@ -1,6 +1,6 @@
 # Subprocess Orchestrator
 
-The Subprocess Orchestrator is a tool designed to manage and execute complex sequences of custom tasks and conditions. It supports running subprocesses, custom Python functions, and composite tasks defined in a YAML configuration file.
+The Subprocess Orchestrator is a tool designed to manage and execute sequences of tasks. It supports running subprocesses, custom Python functions, and composite tasks defined in a YAML configuration file.
 
 ## Features
 
@@ -9,6 +9,7 @@ The Subprocess Orchestrator is a tool designed to manage and execute complex seq
 - Conditional task execution based on previous task results
 - Task-specific instance checking to prevent multiple runs of the same task
 - External function loading for custom task logic
+- Waiting periods with configurable conditions
 
 ## Requirements
 
@@ -39,7 +40,7 @@ tasks:
     function: function_name  # for function
     steps:  # for composite
       - name: step1
-        type: subprocess|function
+        type: subprocess|function|wait
         # ... step details ...
 
 functions:
@@ -47,12 +48,6 @@ functions:
     path: "/path/to/python/file.py"
     function: function_name
 ```
-
-### Task Types
-
-1. **subprocess**: Executes a command-line process
-2. **function**: Runs a custom Python function
-3. **composite**: Executes a series of steps, which can be subprocesses or functions
 
 ## Usage
 
@@ -68,20 +63,50 @@ You can specify a custom configuration file using the `--config` option:
 python subprocess_orchestrator.py task_name --config custom_config.yaml
 ```
 
-## Example: Stratus Task
+## Example Use Case: Stratus Task
 
-The "stratus" task demonstrates a composite task that:
+The "stratus" task demonstrates a composite task that processes data based on file age. Here's how it works:
 
-1. Checks the age of a specific file
-2. Runs a command if the file is older than a threshold
-3. Copies an output file
-4. Runs a Python script to process data
+1. **Check File Age**: 
+   - Checks if the file `m:\spbw\output.csv` is older than 24 hours.
+   - If true, sets `file_age_exceeded` to `True` in the context.
 
-To run the stratus task:
+2. **Run Acuthin**:
+   - If `file_age_exceeded` is `True`, runs the command:
+     `\\mp-cp\bin\acuthin mp-cp f1 stratus`
+   - This command presumably generates or updates the `output.csv` file.
+
+3. **Wait for Acuthin**:
+   - Waits up to 10 minutes, checking every 30 seconds if `m:\spbw\output.csv` has been updated since the acuthin command started.
+
+4. **Copy Output**:
+   - If the file was updated, copies it to a new location:
+     `copy m:\spbw\output.csv \\thinclient\d$\cp\edi\spbw /y`
+
+5. **Run Python Script**:
+   - Executes a Python script for further processing:
+     `python T:\EDISHARE\PYTHON\AOD_Report\process_data.py`
+
+To run this task:
 
 ```
 python subprocess_orchestrator.py stratus
 ```
+
+This example demonstrates:
+- Conditional execution based on file age
+- Running external processes
+- Waiting for file updates with a timeout
+- Copying files
+- Running additional scripts
+
+After the main task, you can update the last run time:
+
+```
+python subprocess_orchestrator.py update_last_run
+```
+
+This updates the timestamp on `m:\spbw\output.csv`, preparing for the next run.
 
 ## Extending the Orchestrator
 
@@ -91,3 +116,8 @@ To add new task types or functionality:
 2. Add corresponding logic in the YAML configuration
 3. Implement any necessary custom functions in separate Python files
 
+## Troubleshooting
+
+- Ensure all paths in the YAML configuration are correct and accessible
+- Check that custom functions are properly implemented and return expected results
+- Verify that required permissions are set for running subprocesses and accessing files

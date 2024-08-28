@@ -6,7 +6,7 @@ tasks:
         type: function
         function: check_file_age
         args:
-          file_path: "T:\\EDISHARE\\PYTHON\\AOD_Report\\last_run.txt"
+          file_path: "m:\\spbw\\output.csv"
           hours_threshold: 24
       - name: run_acuthin
         type: subprocess
@@ -32,7 +32,7 @@ tasks:
     type: function
     function: update_last_run
     args:
-      file_path: "T:\\EDISHARE\\PYTHON\\AOD_Report\\last_run.txt"
+      file_path: "m:\\spbw\\output.csv"
 
 functions:
   check_file_age:
