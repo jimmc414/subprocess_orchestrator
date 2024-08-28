@@ -7,6 +7,7 @@ import logging
 import yaml
 import argparse
 from typing import List, Dict, Any
+from datetime import datetime
 from importlib.util import spec_from_file_location, module_from_spec
 
 # Set up logging
@@ -51,27 +52,48 @@ def run_function(func_info: Dict[str, str], args: Dict[str, Any] = None):
         logging.error(f"Error running function '{func_info['function']}': {str(e)}")
         raise
 
-def execute_task(task: Dict[str, Any], config: Dict[str, Any]):
+def wait_for_condition(condition: Dict[str, Any], max_wait_time: int, check_interval: int, context: Dict[str, Any]):
+    start_time = time.time()
+    while time.time() - start_time < max_wait_time:
+        func_info = condition['type']
+        args = condition['args']
+        # Replace any template variables in args
+        for key, value in args.items():
+            if isinstance(value, str) and value.startswith('{{') and value.endswith('}}'):
+                args[key] = context[value[2:-2]]
+        
+        if run_function(func_info, args):
+            return True
+        time.sleep(check_interval)
+    return False
+
+def execute_task(task: Dict[str, Any], config: Dict[str, Any], context: Dict[str, Any]):
     if task['type'] == 'subprocess':
-        run_subprocess(task['command'])
+        start_time = datetime.now().isoformat()
+        result = run_subprocess(task['command'])
+        context[f"{task['name']}.start_time"] = start_time
+        context[f"{task['name']}.result"] = result
     elif task['type'] == 'function':
         func_info = config['functions'][task['function']]
-        return run_function(func_info, task.get('args'))
+        result = run_function(func_info, task.get('args'))
+        context[f"{task['name']}.result"] = result
+    elif task['type'] == 'wait':
+        condition_met = wait_for_condition(task['condition'], task['max_wait_time'], task['check_interval'], context)
+        if not condition_met:
+            raise TimeoutError(f"Condition not met within {task['max_wait_time']} seconds")
     elif task['type'] == 'composite':
-        execute_composite_task(task, config)
+        execute_composite_task(task, config, context)
     else:
         logging.error(f"Unknown task type: {task['type']}")
         raise ValueError(f"Unknown task type: {task['type']}")
 
-def execute_composite_task(task: Dict[str, Any], config: Dict[str, Any]):
-    context = {}
+def execute_composite_task(task: Dict[str, Any], config: Dict[str, Any], context: Dict[str, Any]):
     for step in task['steps']:
-        if 'run_if' in step and step['run_if'] not in context:
-            logging.info(f"Skipping step '{step['name']}' as condition '{step['run_if']}' is not met")
-            continue
-        result = execute_task(step, config)
-        if result is not None:
-            context[step['name']] = result
+        if 'run_if' in step:
+            if step['run_if'] not in context or not context[step['run_if']]:
+                logging.info(f"Skipping step '{step['name']}' as condition '{step['run_if']}' is not met")
+                continue
+        execute_task(step, config, context)
 
 def subprocess_orchestrator(config: Dict[str, Any], task_name: str):
     tasks = config['tasks']
@@ -81,8 +103,9 @@ def subprocess_orchestrator(config: Dict[str, Any], task_name: str):
         logging.error(f"Task '{task_name}' not found in configuration")
         sys.exit(1)
     
+    context = {}
     try:
-        execute_task(task, config)
+        execute_task(task, config, context)
         logging.info(f"Task '{task_name}' completed successfully")
     except Exception as e:
         logging.error(f"Error in task '{task_name}': {str(e)}")
