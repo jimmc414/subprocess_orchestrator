@@ -1,43 +1,52 @@
 # tasks_config.yaml
 
 tasks:
-  - name: example_task
+  - name: stratus
     type: composite
     schedule:
-      type: interval
+      type: cron
       args:
-        hours: 24
+        hour: '0'  # Run daily at midnight
     steps:
-      - name: check_file_exists
+      - name: check_file_age
         type: function
-        function: check_file_exists
+        function: check_file_age
         args:
-          file_path: "path/to/file.txt"
-      - name: run_command
+          file_path: "m:\\spbw\\output.csv"
+          hours_threshold: 24
+      - name: run_acuthin
         type: subprocess
-        command: ["echo", "Running Task"]
-        run_if: check_file_exists.result
-      - name: wait_for_condition
+        command: ["\\\\mp-cp\\bin\\acuthin", "mp-cp", "f1", "stratus"]
+        run_if: check_file_age.result
+      - name: wait_for_acuthin
         type: wait
-        max_wait_time: 300  # 5 minutes
-        check_interval: 10  # Every 10 seconds
+        max_wait_time: 600  # 10 minutes
+        check_interval: 30  # Check every 30 seconds
         condition:
-          type: custom_condition
+          type: file_updated
           args:
-            parameter: "some_value"
-      - name: update_file
-        type: function
-        function: update_last_run
-        args:
-          file_path: "path/to/last_run.txt"
+            file_path: "m:\\spbw\\output.csv"
+            reference_time: "{{run_acuthin.start_time}}"
+      - name: copy_output
+        type: subprocess
+        command: ["cmd", "/c", "copy", "m:\\spbw\\output.csv", "\\\\thinclient\\d$\\cp\\edi\\spbw", "/y"]
+      - name: run_python_script
+        type: subprocess
+        command: ["python", "T:\\EDISHARE\\PYTHON\\AOD_Report\\process_data.py"]
+
+  - name: update_last_run
+    type: function
+    function: update_last_run
+    args:
+      file_path: "m:\\spbw\\output.csv"
 
 functions:
-  check_file_exists:
-    path: "./utils.py"
-    function: check_file_exists
-  custom_condition:
-    path: "./utils.py"
-    function: custom_condition
+  check_file_age:
+    path: "T:\\EDISHARE\\PYTHON\\AOD_Report\\file_utils.py"
+    function: check_file_age
   update_last_run:
-    path: "./utils.py"
+    path: "T:\\EDISHARE\\PYTHON\\AOD_Report\\file_utils.py"
     function: update_last_run
+  file_updated:
+    path: "T:\\EDISHARE\\PYTHON\\AOD_Report\\file_utils.py"
+    function: file_updated
