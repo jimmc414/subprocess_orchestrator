@@ -1,123 +1,153 @@
 # Subprocess Orchestrator
 
-The Subprocess Orchestrator is a tool designed to manage and execute sequences of tasks. It supports running subprocesses, custom Python functions, and composite tasks defined in a YAML configuration file.
+## Overview
 
-## Features
+The Subprocess Orchestrator is a flexible Python-based tool for managing and executing complex sequences of tasks. It's designed to be easily extendable, allowing you to define custom tasks, conditions, and workflows using a combination of YAML configuration and Python functions.
+
+## Key Features
 
 - Task definition using YAML configuration
 - Support for subprocess execution, custom Python functions, and composite tasks
 - Conditional task execution based on previous task results
-- Task-specific instance checking to prevent multiple runs of the same task
-- External function loading for custom task logic
-- Waiting periods with configurable conditions
+- Integrated scheduling capabilities using APScheduler
+- Extensible architecture for adding new task types and conditions
 
-## Requirements
+## Getting Started
 
-- Python 3.6+
-- PyYAML
-- psutil
-
-## Installation
-
-1. Clone this repository.
-2. Install the required dependencies:
-
-   ```
-   pip install PyYAML psutil
-   ```
-
-3. Create your YAML configuration file (default name: `tasks_config.yaml`).
-
-## Configuration
-
-Tasks are defined in a YAML file. Here's an example structure:
-
-```yaml
-tasks:
-  - name: task_name
-    type: subprocess|function|composite
-    command: ["command", "arg1", "arg2"]  # for subprocess
-    function: function_name  # for function
-    steps:  # for composite
-      - name: step1
-        type: subprocess|function|wait
-        # ... step details ...
-
-functions:
-  function_name:
-    path: "/path/to/python/file.py"
-    function: function_name
-```
-
-## Usage
-
-Run the orchestrator from the command line, specifying the task to execute:
-
-```
-python subprocess_orchestrator.py task_name
-```
-
-You can specify a custom configuration file using the `--config` option:
-
-```
-python subprocess_orchestrator.py task_name --config custom_config.yaml
-```
-
-## Example Use Case: Stratus Task
-
-The "stratus" task demonstrates a composite task that processes data based on file age. Here's how it works:
-
-1. **Check File Age**: 
-   - Checks if the file `m:\spbw\output.csv` is older than 24 hours.
-   - If true, sets `file_age_exceeded` to `True` in the context.
-
-2. **Run Acuthin**:
-   - If `file_age_exceeded` is `True`, runs the command:
-     `\\mp-cp\bin\acuthin mp-cp f1 stratus`
-   - This command presumably generates or updates the `output.csv` file.
-
-3. **Wait for Acuthin**:
-   - Waits up to 10 minutes, checking every 30 seconds if `m:\spbw\output.csv` has been updated since the acuthin command started.
-
-4. **Copy Output**:
-   - If the file was updated, copies it to a new location:
-     `copy m:\spbw\output.csv \\thinclient\d$\cp\edi\spbw /y`
-
-5. **Run Python Script**:
-   - Executes a Python script for further processing:
-     `python T:\EDISHARE\PYTHON\AOD_Report\process_data.py`
-
-To run this task:
-
-```
-python subprocess_orchestrator.py stratus
-```
-
-This example demonstrates:
-- Conditional execution based on file age
-- Running external processes
-- Waiting for file updates with a timeout
-- Copying files
-- Running additional scripts
-
-After the main task, you can update the last run time:
-
-```
-python subprocess_orchestrator.py update_last_run
-```
-
-This updates the timestamp on `m:\spbw\output.csv`, preparing for the next run.
+1. Clone this repository
+2. Install dependencies: `pip install pyyaml apscheduler`
+3. Configure your tasks in `tasks_config.yaml`
+4. Run the orchestrator: `python subprocess_orchestrator.py your_task_name`
 
 ## Extending the Orchestrator
 
-To add new task types or functionality:
+### Adding New Task Types
 
-1. Update the `execute_task()` function in `subprocess_orchestrator.py`
-2. Add corresponding logic in the YAML configuration
-3. Implement any necessary custom functions in separate Python files
+1. Update `subprocess_orchestrator.py`:
+   - Modify the `execute_task()` function to handle your new task type
+   - Add any necessary helper functions
 
-## Troubleshooting
+Example:
+```python
+def execute_task(task: Dict[str, Any], config: Dict[str, Any], context: Dict[str, Any]):
+    # ... existing code ...
+    elif task_type == 'your_new_task_type':
+        result = your_new_task_function(task, context)
+        context[f"{task_name}.result"] = result
+    # ... existing code ...
 
-- Ensure all paths in the YAML configuration are correct and accessible
-- Check that custom functions are properly implemented and return expected results
-- Verify that required permissions are set for running subprocesses and accessing files
+def your_new_task_function(task: Dict[str, Any], context: Dict[str, Any]):
+    # Implement your new task logic here
+    pass
+```
+
+2. Update `tasks_config.yaml`:
+   - Add your new task type to a task definition
+
+Example:
+```yaml
+tasks:
+  - name: example_new_task
+    type: your_new_task_type
+    # Add any necessary parameters for your new task type
+```
+
+### Adding New Utility Functions
+
+1. Update `utils.py`:
+   - Add your new function
+
+Example:
+```python
+def your_new_utility_function(param1: str, param2: int) -> bool:
+    # Implement your utility function
+    pass
+```
+
+2. Update `tasks_config.yaml`:
+   - Add your new function to the `functions` section
+
+Example:
+```yaml
+functions:
+  your_new_utility_function:
+    path: "./utils.py"
+    function: your_new_utility_function
+```
+
+### Creating Custom Conditions
+
+1. Implement your condition function in `utils.py`
+2. Use it in your task configuration:
+
+```yaml
+steps:
+  - name: conditional_step
+    type: subprocess
+    command: ["your", "command"]
+    run_if: your_custom_condition
+```
+
+### Extending Scheduling Capabilities
+
+Modify the `schedule_tasks()` function in `subprocess_orchestrator.py` to support new scheduling patterns or integrate with different scheduling systems.
+
+## Best Practices for Extension
+
+1. **Maintain Modularity**: Keep new functionalities separate and focused.
+2. **Update Documentation**: Document new task types, functions, or features in comments and this README.
+3. **Error Handling**: Implement robust error handling for new features.
+4. **Testing**: Create unit tests for new functions and integration tests for new task types.
+5. **Configuration Driven**: Aim to make new features configurable via YAML when possible.
+6. **Backward Compatibility**: Ensure extensions don't break existing functionality.
+
+## Advanced Topics
+
+### Custom Context Managers
+
+For tasks requiring setup and teardown, consider implementing custom context managers:
+
+```python
+from contextlib import contextmanager
+
+@contextmanager
+def your_custom_context():
+    # Setup
+    try:
+        yield
+    finally:
+        # Teardown
+```
+
+Use in `subprocess_orchestrator.py`:
+
+```python
+with your_custom_context():
+    execute_task(task, config, context)
+```
+
+### Parallel Task Execution
+
+For parallel execution of independent tasks, consider using Python's `concurrent.futures`:
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+
+def execute_parallel_tasks(tasks, config, context):
+    with ThreadPoolExecutor() as executor:
+        futures = [executor.submit(execute_task, task, config, context) for task in tasks]
+        for future in futures:
+            future.result()  # This will raise any exceptions that occurred
+```
+
+### Dynamic Task Generation
+
+Implement a function to generate tasks dynamically based on runtime conditions:
+
+```python
+def generate_dynamic_tasks(context: Dict[str, Any]) -> List[Dict[str, Any]]:
+    # Generate and return a list of tasks based on the current context
+    pass
+```
+
+Use this in your main orchestration logic to add flexibility to your workflows.
